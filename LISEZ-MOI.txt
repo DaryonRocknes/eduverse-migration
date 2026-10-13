@@ -7,13 +7,28 @@ CE QUE FAIT L'OUTIL (automatiquement, en 1 clic)
 ------------------------------------------------
 1. (Re)cree la base MySQL propre (utf8mb4).
 2. Charge le schema EDUVERSE  (schema_mysql.sql : toutes les tables,
-   les cles primaires, les index, les AUTO_INCREMENT).
-3. Exporte chaque table PostgreSQL en CSV.
+   les cles primaires, les index, les AUTO_INCREMENT) et verifie que
+   MySQL accepte les procedures stockees.
+3. Exporte chaque table PostgreSQL en CSV (fichiers temporaires,
+   supprimes a la fin).
 4. Importe les donnees dans MySQL, en convertissant tout seul :
-      - les booleens  t / f          ->  1 / 0
-      - les champs vides (NULL)       ->  NULL
-      - les dates 0000-00-00 / vides  ->  NULL
+      - les booleens  t / f              ->  1 / 0
+      - les dates avec fuseau (timestamptz) -> heure locale de l'ecole
+      - NULL reste NULL, une chaine vide reste une chaine vide,
+        les antislashs (\) et retours a la ligne sont conserves.
+   Les avertissements MySQL (texte tronque, date invalide...) sont
+   comptes et ecrits dans le journal.
 5. Verifie que le nombre de lignes correspond entre les deux bases.
+6. Cree les vues, fonctions et declencheurs (moyennes, rangs, credits).
+7. Aligne les compteurs AUTO_INCREMENT sur les sequences PostgreSQL.
+8. Pose les cles etrangeres (et signale les donnees orphelines).
+9. Verifie que toutes les cles "compteurs" sont en AUTO_INCREMENT.
+
+Un JOURNAL complet est ecrit a cote du programme :
+      journal-migration-AAAAMMJJ-HHMM.txt
+(sinon dans %LOCALAPPDATA%\EDUVERSE-Migration sous Windows, ou dans
+le dossier personnel). Il ne contient aucun mot de passe.
+C'est CE FICHIER qu'il faut envoyer a Webtinix en cas de probleme.
 
 
 POUR LA PERSONNE QUI MIGRE (non technique)
@@ -23,7 +38,12 @@ POUR LA PERSONNE QUI MIGRE (non technique)
       - Linux   : Migration-EDUVERSE  (ou lancer-migration.sh)
 2. Cliquez sur "Demarrer la migration", confirmez.
 3. Attendez la barre de progression.
-4. Message final : vert = OK / orange = un ecart, prevenir Webtinix.
+4. Message final :
+      vert   = tout est OK ;
+      orange = migration faite MAIS avec des ecarts (comptages,
+               avertissements, cles etrangeres...) : envoyer le
+               fichier journal a Webtinix ;
+      rouge  = echec (le message dit quoi faire) : envoyer le journal.
 Aucune commande a taper.
 
 ATTENTION : la base MySQL cible est RECREEE a chaque migration
@@ -36,15 +56,47 @@ POUR WEBTINIX (installation, une seule fois par client)
       - chemins de psql et de mysql sur cette machine
       - noms des bases source (PostgreSQL) et cible (MySQL)
       - mots de passe si necessaire
+      - [migration] fuseau_horaire = le $Timezone d'Eduverse
+        (config.inc.php), ex. Africa/Brazzaville
 2. Gardez  schema_mysql.sql  a cote du programme
-   (c'est le schema EDUVERSE de reference ; remplacez-le si le
-    produit evolue, en re-exportant depuis phpMyAdmin).
+   (c'est le schema EDUVERSE de reference ; voir plus bas avant de
+    le remplacer).
 3. Les fichiers config.ini ET schema_mysql.sql doivent toujours
    accompagner le programme.
 
-Pre-requis cote MySQL/XAMPP : 'LOAD DATA LOCAL INFILE' autorise
-(par defaut avec XAMPP). L'utilisateur MySQL doit pouvoir creer
-une base (DROP/CREATE DATABASE).
+Pre-requis cote MySQL/XAMPP :
+- 'LOAD DATA LOCAL INFILE' autorise (par defaut avec XAMPP) ;
+- l'utilisateur MySQL doit pouvoir creer une base (DROP/CREATE
+  DATABASE), des vues, des procedures et des declencheurs (root : oui) ;
+- les tables systeme de MariaDB doivent etre a jour (voir ci-dessous).
+
+SI LE MESSAGE "MySQL refuse la creation de procedures stockees"
+APPARAIT (erreur 1558 ou 1805 "Column count of mysql.proc is wrong") :
+XAMPP a ete mis a jour sans mettre a jour les tables systeme de MariaDB.
+La migration s'arrete AVANT l'import (rien n'est perdu). Reparation,
+une seule fois :
+   1. Demarrer MySQL dans le panneau XAMPP.
+   2. Windows : C:\xampp\mysql\bin\mysql_upgrade.exe -u root -p
+      Linux   : sudo /opt/lampp/bin/mysql_upgrade -u root -p
+      (Entree si root n'a pas de mot de passe)
+   3. Redemarrer MySQL dans le panneau XAMPP, relancer la migration.
+
+Si un message parle de l'erreur 1418 (journalisation binaire active,
+rare avec XAMPP) : executer une fois en root
+   SET GLOBAL log_bin_trust_function_creators = 1;
+puis relancer.
+
+
+MODE SANS INTERFACE (tests, automatisation)
+-------------------------------------------
+   python3 migration.py --sans-interface --oui [--config autre.ini]
+   (ou : Migration-EDUVERSE --sans-interface --oui)
+--oui     : ne pas demander confirmation avant de recreer la base.
+--config  : utiliser un autre fichier de reglages.
+Code de retour : 0 = OK, 1 = termine avec avertissements,
+                 2 = echec, 3 = annule.
+Sous Windows, le .exe est une application fenetree : en mode sans
+interface il n'affiche rien, tout est dans le journal.
 
 
 FABRIQUER LE .EXE / LE LANCEUR (une fois par Webtinix)
@@ -55,15 +107,119 @@ Necessite Python 3 sur la machine de fabrication.
   pyinstaller --onefile --windowed --name "Migration-EDUVERSE" migration.py
 
 Le programme final est dans  dist/ .
-Copiez-le AVEC  config.ini  ET  schema_mysql.sql  sur la machine du client.
-(Python n'a pas besoin d'etre installe chez le client.)
+Copiez-le AVEC  config.ini, schema_mysql.sql ET LISEZ-MOI.txt sur la
+machine du client. (Python n'a pas besoin d'etre installe chez le client.)
+Aucune dependance supplementaire : uniquement la bibliotheque standard.
 
 
 NOTES TECHNIQUES
 ----------------
-- Les conversions (booleen, NULL, dates) sont deduites automatiquement
-  des types lus dans PostgreSQL : aucun traitement a coder par table.
+- Les conversions sont deduites automatiquement des types lus dans
+  PostgreSQL : aucun traitement a coder par table.
 - Les colonnes sont mappees PAR NOM (l'ordre des colonnes peut differer
   entre PostgreSQL et MySQL sans probleme).
 - Si une table existe dans PostgreSQL mais pas dans le schema MySQL,
-  elle est ignoree et signalee dans le journal.
+  elle est ignoree et signalee dans le journal (message orange).
+- schema_mysql.sql comporte 3 parties separees par des reperes :
+     partie 1 : tables (chargee avant l'import) ;
+     "-- @@EDUVERSE-APRES-IMPORT@@" : vues, fonctions, procedures,
+        declencheurs (blocs "-- @@OBJET ...", charges apres l'import) ;
+     "-- @@EDUVERSE-CLES-ETRANGERES@@" : cles etrangeres, une par ligne.
+  Si vous regenerez le schema depuis phpMyAdmin, reportez les parties
+  2 et 3 et gardez ces reperes, sinon l'outil signale un schema ancien.
+  Le fichier reste chargeable tel quel avec le client mysql ou
+  phpMyAdmin (base vide).
+
+
+============================================================
+  CORRECTIONS DU 13/10/2026
+============================================================
+
+1. AUTO_INCREMENT manquants (insertions "Field 'x' doesn't have a
+   default value", ex. transfert d'annee, creation de matieres).
+   -> schema_mysql.sql : AUTO_INCREMENT ajoute sur 57 cles primaires
+      (toutes les cles mono-colonne entieres qui etaient des SERIAL /
+      sequences dans PostgreSQL). Exclues car non-compteurs dans
+      RosarioSIS : food_service_accounts, food_service_staff_accounts,
+      food_service_student_accounts, history_marking_periods.
+      Meme regle que school/migration_auto_increment_mysql.sql (rattrapage
+      des bases deja migrees). SQL_MODE NO_AUTO_VALUE_ON_ZERO garde
+      pendant le schema ET l'import (user_profiles a un id 0).
+   -> Apres import, les compteurs sont alignes sur la derniere valeur
+      des sequences PostgreSQL (pas de reutilisation d'identifiants).
+   -> Controle final : toute cle compteur sans AUTO_INCREMENT = orange.
+
+2. Vues absentes. -> Ajoutees (equivalents MySQL de RosarioSIS 11.0,
+   rosariosis_mysql.sql) : marking_periods, transcript_grades,
+   enroll_grade, course_details. "dual" n'est pas creee : elle existe
+   nativement dans MySQL. Leurs colonnes calculees ('Y', 'History',
+   mp_type...) ont un COLLATE utf8mb4_general_ci explicite : sinon
+   l'application (connexion en utf8mb4_unicode_520_ci) ou phpMyAdmin
+   (general_ci) obtient l'erreur 1267 "Illegal mix of collations"
+   (constatee en test). Verifie avec les deux collations.
+
+3. Fonctions et declencheurs absents. -> Ajoutes (RosarioSIS 11.0) :
+   procedures calc_gpa_mp, calc_cum_gpa, calc_cum_cr_gpa,
+   t_update_mp_stats ; fonctions credit() et set_class_rank_mp() ;
+   declencheurs srcg_mp_stats_insert / _update / _delete sur
+   student_report_card_grades. Ils sont crees APRES l'import.
+   set_updated_at (94 declencheurs PostgreSQL) est remplace par
+   "updated_at ... ON UPDATE current_timestamp()" sur les 98 colonnes
+   updated_at. immutable_unaccent() n'est pas reprise : aucun code ne
+   l'appelle (la collation MySQL ignore deja les accents).
+   Les 14 colonnes de moyennes / credits de student_mp_stats et
+   student_report_card_grades passent de decimal(10,0) (arrondi a
+   l'entier !) a decimal(22,16), comme dans RosarioSIS.
+   Si MariaDB refuse les procedures (XAMPP, erreur 1558/1805), l'outil
+   s'arrete avec la marche a suivre (mysql_upgrade) au lieu d'ignorer.
+
+4. Cles etrangeres absentes. -> Les 118 cles du schema PostgreSQL sont
+   posees APRES l'import (RosarioSIS amont declare aussi ses cles
+   etrangeres dans rosariosis_mysql.sql : on s'aligne). Avant chaque
+   cle, les lignes orphelines sont comptees : s'il y en a, la cle n'est
+   pas posee et le journal indique table, contrainte et nombre de
+   lignes ; la migration continue (message orange). 9 noms en double
+   (unique par table en PostgreSQL, par base en MySQL) sont prefixes
+   par le nom de leur table.
+
+5. Erreurs silencieuses. -> Apres chaque LOAD DATA, SHOW COUNT(*)
+   WARNINGS / SHOW WARNINGS dans la meme session : comptes par table,
+   20 premiers details dans le journal (valeurs citees masquees).
+   Message final orange s'il y en a.
+
+6. Antislashs alteres. -> LOAD DATA ... ESCAPED BY '' (le CSV de
+   PostgreSQL double les guillemets, il n'echappe pas par antislash).
+   Retours a la ligne (LF et CRLF) dans les champs conserves ; fichier
+   CSV a fins de ligne CRLF (psql sous Windows) detecte. timestamptz :
+   exporte dans le fuseau de l'ecole ([migration] fuseau_horaire), sans
+   decalage ; session MySQL d'import au meme decalage. timetz : heure
+   sans decalage. bytea : hexadecimal puis UNHEX. Export force en UTF-8.
+
+7. Chaines vides changees en NULL. -> Export avec NULL 'NULL' : NULL =
+   mot NULL sans guillemets (lu NULL par MySQL), chaine vide = champ vide
+   (lue ''), la chaine "NULL" est entouree de guillemets (lue 'NULL').
+   Le NULLIF(...,'') systematique est supprime.
+
+8. Pas de journal sur disque. -> journal-migration-AAAAMMJJ-HHMM.txt
+   horodate a cote du programme (repli %LOCALAPPDATA% / dossier perso),
+   sans aucun mot de passe.
+
+9. Mode sans interface : --sans-interface (ou --cli), --oui, --config.
+   L'interface graphique est identique ; seul ajout : la ligne d'etat
+   finale est coloree (vert / orange / rouge).
+
+Autres : CSV temporaires supprimes a la fin (donnees personnelles) ;
+dossier temporaire choisi sans accent (psql.exe / mysql.exe ne lisent
+pas les chemins accentues sous Windows) ; pas de fenetre noire qui
+clignote sous Windows ; psql.exe trouve automatiquement si la version
+de config.ini n'est pas installee ; erreur claire si psql / mysql est
+introuvable.
+
+Limites connues :
+- Les colonnes datetime MySQL n'ont pas de fractions de seconde : les
+  microsecondes PostgreSQL sont tronquees (sans avertissement MySQL).
+- Les colonnes numeric PostgreSQL sans precision (sort_order...) sont en
+  decimal(10,0) dans le schema : une valeur decimale y serait arrondie ;
+  l'outil le signale (avertissement 1265, message orange).
+- Les tables restent en utf8mb4_general_ci (schema phpMyAdmin d'origine),
+  alors que RosarioSIS recommande utf8mb4_unicode_520_ci.

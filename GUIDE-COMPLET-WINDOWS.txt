@@ -87,8 +87,10 @@ Garde ce document avec toi. Tu ne peux pas te perdre.
   Dedans, tu dois voir notamment :
        COMPILER-WINDOWS.bat     <- le fichier qui fait tout
        migration.py             <- le programme
-       config.ini               <- les reglages
+       config-windows.ini       <- les reglages Windows (deviendra config.ini)
+       config.ini               <- les reglages Linux
        schema_mysql.sql         <- le schema EDUVERSE
+       LISEZ-MOI.txt            <- mode d'emploi + corrections du 13/10/2026
        GUIDE-COMPLET-WINDOWS.txt <- ce guide
 
 
@@ -133,11 +135,12 @@ Garde ce document avec toi. Tu ne peux pas te perdre.
 
             Migration-EDUVERSE-Windows
 
-  Il contient les 3 fichiers a livrer au client :
+  Il contient les 4 fichiers a livrer au client :
 
             Migration-EDUVERSE.exe     (le programme)
-            config.ini                 (les reglages)
+            config.ini                 (les reglages, chemins Windows)
             schema_mysql.sql           (le schema)
+            LISEZ-MOI.txt              (le mode d'emploi)
 
   C'EST CE DOSSIER QUE TU DONNES AU CLIENT.
   Le client double-clique sur Migration-EDUVERSE.exe. Rien a
@@ -152,7 +155,7 @@ Garde ce document avec toi. Tu ne peux pas te perdre.
   et verifier / corriger les chemins Windows :
 
     [postgres]
-    psql = C:\Program Files\PostgreSQL\16\bin\psql.exe
+    psql = C:\Program Files\PostgreSQL\17\bin\psql.exe
     host = localhost
     port = 5432
     user = postgres
@@ -168,11 +171,19 @@ Garde ce document avec toi. Tu ne peux pas te perdre.
     database = eduverse
     schema_file = schema_mysql.sql
 
+    [migration]
+    fuseau_horaire = Africa/Brazzaville
+
   A adapter :
-   - Le numero de version PostgreSQL ("16") selon ce qui est
+   - Le numero de version PostgreSQL ("17") selon ce qui est
      installe. Pour le trouver : ouvrir le dossier
      C:\Program Files\PostgreSQL\  et regarder le numero du
-     sous-dossier.
+     sous-dossier. (Si le chemin est faux, le programme cherche
+     tout seul la version installee la plus recente.)
+   - fuseau_horaire : le meme que $Timezone dans le config.inc.php
+     d'Eduverse (sert aux dates "avec fuseau").
+   - Les mots de passe : seulement si necessaire. Ils ne sont
+     jamais recopies dans le journal.
    - Le chemin de XAMPP si different (ex. D:\xampp\...).
 
   Enregistrer (Fichier -> Enregistrer).
@@ -189,15 +200,22 @@ Garde ce document avec toi. Tu ne peux pas te perdre.
        /!\ Si une base eduverse existe deja dans MySQL, elle est
            EFFACEE puis remplacee. Une confirmation est demandee.
     2. Charge le schema EDUVERSE (toutes les tables, cles, etc.).
-    3. Exporte chaque table PostgreSQL en CSV.
+    3. Exporte chaque table PostgreSQL en CSV (supprimes a la fin).
     4. Importe dans MySQL en convertissant tout seul :
          - booleens  t/f      -> 1/0
-         - champs vides        -> NULL
-         - dates 0000-00-00    -> NULL
-         - colonnes en trop cote PostgreSQL -> ignorees
+         - NULL reste NULL, texte vide reste vide, antislashs et
+           retours a la ligne conserves
+         - dates avec fuseau  -> heure locale de l'ecole
+         - colonnes en trop cote PostgreSQL -> ignorees (signalees)
+       et compte les avertissements MySQL (textes tronques...).
     5. Verifie que le nombre de lignes correspond des deux cotes.
+    6. Cree les vues, fonctions et declencheurs (moyennes, rangs).
+    7. Pose les cles etrangeres (signale les donnees orphelines).
 
-  A la fin : message vert (tout OK) ou orange (un ecart a signaler).
+  A la fin : message vert (tout OK) ou orange (un ecart a signaler :
+  envoyer le journal a Webtinix).
+  Un journal  journal-migration-AAAAMMJJ-HHMM.txt  est cree a cote
+  du .exe a chaque migration.
 
 
 ================================================================
@@ -211,7 +229,13 @@ Garde ce document avec toi. Tu ne peux pas te perdre.
    - MySQL doit autoriser  LOAD DATA LOCAL INFILE
      (c'est le cas par defaut avec XAMPP).
    - L'utilisateur MySQL doit pouvoir creer une base
-     (DROP / CREATE DATABASE).
+     (DROP / CREATE DATABASE), des vues, procedures et
+     declencheurs (root : oui).
+   - Tables systeme MariaDB a jour : si le programme affiche
+     "MySQL refuse la creation de procedures stockees", lancer
+     une fois (MySQL demarre) :
+        C:\xampp\mysql\bin\mysql_upgrade.exe -u root -p
+     redemarrer MySQL dans XAMPP, puis relancer la migration.
    - Un ecran (c'est une fenetre : ca ne marche pas sur un
      serveur sans affichage).
 
@@ -247,8 +271,20 @@ Garde ce document avec toi. Tu ne peux pas te perdre.
          A COTE du .exe (dans le meme dossier).
 
   "Connexion PostgreSQL impossible" / "Connexion MySQL"
+  / "Programme introuvable"
       -> Verifier les chemins psql / mysql et les mots de passe
          dans config.ini. Verifier que PostgreSQL et MySQL tournent.
+
+  "MySQL refuse la creation de procedures stockees"
+      -> Tables systeme de MariaDB pas a jour (XAMPP).
+      -> Solution : C:\xampp\mysql\bin\mysql_upgrade.exe -u root -p
+         puis redemarrer MySQL dans XAMPP et relancer.
+
+  Message orange a la fin
+      -> La migration est faite mais il y a des ecarts (comptages,
+         avertissements MySQL, cles etrangeres non posees a cause
+         de donnees orphelines...). Envoyer le fichier
+         journal-migration-....txt a Webtinix.
 
 
 ================================================================

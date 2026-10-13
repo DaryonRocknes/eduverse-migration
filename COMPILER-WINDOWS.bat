@@ -72,7 +72,8 @@ set "DEST=Migration-EDUVERSE-Windows"
 if exist "%DEST%" rmdir /s /q "%DEST%"
 mkdir "%DEST%"
 copy /y "dist\Migration-EDUVERSE.exe" "%DEST%\" >nul
-copy /y "config.ini" "%DEST%\" >nul
+REM config.ini livre avec les chemins Windows par defaut (sans mot de passe)
+if exist "config-windows.ini" (copy /y "config-windows.ini" "%DEST%\config.ini" >nul) else (copy /y "config.ini" "%DEST%\" >nul)
 copy /y "schema_mysql.sql" "%DEST%\" >nul
 if exist "LISEZ-MOI.txt" copy /y "LISEZ-MOI.txt" "%DEST%\" >nul
 
@@ -87,8 +88,12 @@ echo  Ce dossier contient :
 echo      Migration-EDUVERSE.exe     (le programme^)
 echo      config.ini                 (les reglages^)
 echo      schema_mysql.sql           (le schema^)
+echo      LISEZ-MOI.txt              (mode d'emploi, corrections^)
 echo.
+echo  A chaque migration, un journal  journal-migration-AAAAMMJJ-HHMM.txt
+echo  est cree a cote du .exe : c'est lui qu'il faut envoyer a Webtinix.
 echo  -^> Donnez ce dossier au client. Il double-clique sur le .exe.
-echo  -^> Pensez a regler config.ini (chemins Windows de psql et mysql^).
+echo  -^> Pensez a regler config.ini (chemins Windows de psql et mysql,
+echo     fuseau_horaire de l'ecole^). Ne livrez pas de mot de passe inutile.
 echo.
 pause

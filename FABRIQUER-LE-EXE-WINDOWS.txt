@@ -20,8 +20,11 @@ ETAPE 2 - Copier les fichiers du programme
 ------------------------------------------
 Sur le PC Windows, mettre dans un dossier (ex : C:\eduverse) :
       migration.py
-      config.ini
-      schema_mysql.sql
+      config-windows.ini   (modele de reglages Windows)
+      schema_mysql.sql     (version du 13/10/2026 ou plus recente)
+      LISEZ-MOI.txt
+(Ou plus simple : double-cliquer sur COMPILER-WINDOWS.bat, qui fait
+ les etapes 4 et 5 tout seul.)
 
 
 ETAPE 3 - Ouvrir l'invite de commandes dans ce dossier
@@ -47,10 +50,11 @@ ETAPE 5 - Recuperer le .exe
 Le fichier est cree dans le sous-dossier :  dist\
       dist\Migration-EDUVERSE.exe
 
-Creer le dossier a livrer au client, avec 3 fichiers :
+Creer le dossier a livrer au client, avec 4 fichiers :
       Migration-EDUVERSE.exe        (depuis dist\)
-      config.ini                    (regle pour ce client)
+      config.ini                    (= config-windows.ini, regle pour ce client)
       schema_mysql.sql
+      LISEZ-MOI.txt
 
 Le client double-clique sur Migration-EDUVERSE.exe. Rien a installer chez lui.
 
@@ -61,5 +65,18 @@ RAPPEL
 - Sur le PC du client : XAMPP installe, et MySQL doit autoriser
   'LOAD DATA LOCAL INFILE' (par defaut OK avec XAMPP).
 - Adapter dans config.ini les chemins Windows, par exemple :
-      psql  = C:\Program Files\PostgreSQL\16\bin\psql.exe
+      psql  = C:\Program Files\PostgreSQL\17\bin\psql.exe
       mysql = C:\xampp\mysql\bin\mysql.exe
+  (si le psql indique n'existe pas, le programme cherche tout seul la
+   version installee dans C:\Program Files\PostgreSQL\*\bin)
+  et  [migration] fuseau_horaire  (ex. Africa/Brazzaville).
+- Chaque migration ecrit un journal  journal-migration-AAAAMMJJ-HHMM.txt
+  a cote du .exe (sinon dans %LOCALAPPDATA%\EDUVERSE-Migration).
+- Si le programme dit "MySQL refuse la creation de procedures stockees"
+  (XAMPP) : lancer une fois  C:\xampp\mysql\bin\mysql_upgrade.exe -u root -p ,
+  redemarrer MySQL dans XAMPP, relancer (details dans LISEZ-MOI.txt).
+- Test sans fenetre (Webtinix) :
+      Migration-EDUVERSE.exe --sans-interface --oui
+  n'affiche rien (application fenetree) : lire le journal.
+- Le .exe fabrique avec Python 3.13 fonctionne sur Windows 10 / 11
+  (pas Windows 7 / 8).
