@@ -1,0 +1,69 @@
+============================================================
+  OUTIL DE MIGRATION EDUVERSE  (PostgreSQL  ->  MySQL)
+  Webtinix
+============================================================
+
+CE QUE FAIT L'OUTIL (automatiquement, en 1 clic)
+------------------------------------------------
+1. (Re)cree la base MySQL propre (utf8mb4).
+2. Charge le schema EDUVERSE  (schema_mysql.sql : toutes les tables,
+   les cles primaires, les index, les AUTO_INCREMENT).
+3. Exporte chaque table PostgreSQL en CSV.
+4. Importe les donnees dans MySQL, en convertissant tout seul :
+      - les booleens  t / f          ->  1 / 0
+      - les champs vides (NULL)       ->  NULL
+      - les dates 0000-00-00 / vides  ->  NULL
+5. Verifie que le nombre de lignes correspond entre les deux bases.
+
+
+POUR LA PERSONNE QUI MIGRE (non technique)
+------------------------------------------
+1. Double-cliquez sur :
+      - Windows : Migration-EDUVERSE.exe
+      - Linux   : Migration-EDUVERSE  (ou lancer-migration.sh)
+2. Cliquez sur "Demarrer la migration", confirmez.
+3. Attendez la barre de progression.
+4. Message final : vert = OK / orange = un ecart, prevenir Webtinix.
+Aucune commande a taper.
+
+ATTENTION : la base MySQL cible est RECREEE a chaque migration
+(ses anciennes donnees sont effacees). Une confirmation est demandee.
+
+
+POUR WEBTINIX (installation, une seule fois par client)
+-------------------------------------------------------
+1. Ouvrez  config.ini  (Bloc-notes) et renseignez :
+      - chemins de psql et de mysql sur cette machine
+      - noms des bases source (PostgreSQL) et cible (MySQL)
+      - mots de passe si necessaire
+2. Gardez  schema_mysql.sql  a cote du programme
+   (c'est le schema EDUVERSE de reference ; remplacez-le si le
+    produit evolue, en re-exportant depuis phpMyAdmin).
+3. Les fichiers config.ini ET schema_mysql.sql doivent toujours
+   accompagner le programme.
+
+Pre-requis cote MySQL/XAMPP : 'LOAD DATA LOCAL INFILE' autorise
+(par defaut avec XAMPP). L'utilisateur MySQL doit pouvoir creer
+une base (DROP/CREATE DATABASE).
+
+
+FABRIQUER LE .EXE / LE LANCEUR (une fois par Webtinix)
+------------------------------------------------------
+Necessite Python 3 sur la machine de fabrication.
+
+  pip install pyinstaller
+  pyinstaller --onefile --windowed --name "Migration-EDUVERSE" migration.py
+
+Le programme final est dans  dist/ .
+Copiez-le AVEC  config.ini  ET  schema_mysql.sql  sur la machine du client.
+(Python n'a pas besoin d'etre installe chez le client.)
+
+
+NOTES TECHNIQUES
+----------------
+- Les conversions (booleen, NULL, dates) sont deduites automatiquement
+  des types lus dans PostgreSQL : aucun traitement a coder par table.
+- Les colonnes sont mappees PAR NOM (l'ordre des colonnes peut differer
+  entre PostgreSQL et MySQL sans probleme).
+- Si une table existe dans PostgreSQL mais pas dans le schema MySQL,
+  elle est ignoree et signalee dans le journal.

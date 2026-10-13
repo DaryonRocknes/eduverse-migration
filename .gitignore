@@ -1,0 +1,17 @@
+# Fabrication PyInstaller : les exécutables sont publiés en « release », pas dans le code.
+build/
+dist/
+*.spec
+Migration-EDUVERSE
+Migration-EDUVERSE.exe
+Migration-EDUVERSE-Windows/
+Migration-EDUVERSE-Linux/
+
+# Artefacts d'exécution
+__pycache__/
+*.pyc
+journal-migration-*.txt
+*.csv
+
+# Une config remplie (mots de passe) ne doit jamais être publiée : la garder sous ce nom.
+config.local.ini

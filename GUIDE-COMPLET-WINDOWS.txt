@@ -1,0 +1,288 @@
+################################################################
+#                                                              #
+#     GUIDE COMPLET - FABRIQUER L'APPLICATION SUR WINDOWS      #
+#     Migration EDUVERSE  (PostgreSQL  ->  MySQL)              #
+#     Webtinix                                                 #
+#                                                              #
+################################################################
+
+Ce guide explique, pas a pas, comment transformer le programme
+en application Windows (.exe) que le client double-cliquera.
+
+Tu n'auras PRESQUE RIEN a taper : un fichier fait tout tout seul.
+
+Garde ce document avec toi. Tu ne peux pas te perdre.
+
+
+================================================================
+  RESUME EN 4 LIGNES (pour les presses)
+================================================================
+
+  1. Installer Python (cocher "Add Python to PATH").
+  2. Extraire le ZIP  eduverse-migration-SOURCES.zip.
+  3. Double-cliquer sur  COMPILER-WINDOWS.bat  et attendre "TERMINE".
+  4. Livrer le dossier  Migration-EDUVERSE-Windows  au client.
+
+  Les details de chaque etape sont plus bas.
+
+
+================================================================
+  CE DONT TU AS BESOIN
+================================================================
+
+  - Un PC sous Windows (n'importe lequel, meme celui d'un collegue).
+  - Une connexion Internet (pour telecharger Python + l'outil).
+  - Le fichier  eduverse-migration-SOURCES.zip.
+
+  Important :
+  - On fabrique le .exe UNE SEULE FOIS.
+  - Un .exe Windows ne peut PAS etre fabrique depuis Linux : il
+    faut obligatoirement un PC Windows.
+
+
+================================================================
+  ETAPE 1 - INSTALLER PYTHON  (une seule fois sur ce PC)
+================================================================
+
+  Python est le "moteur" du programme. On l'installe pour pouvoir
+  fabriquer le .exe. (Le client final, lui, n'aura PAS besoin de
+  Python : il sera cache dans le .exe.)
+
+  1.1. Ouvrir le navigateur et aller sur :
+            https://www.python.org/downloads/
+
+  1.2. Cliquer sur le gros bouton jaune "Download Python 3.x".
+
+  1.3. Ouvrir le fichier telecharge (en bas du navigateur ou dans
+       le dossier Telechargements).
+
+  1.4. *** L'ETAPE LA PLUS IMPORTANTE ***
+       Tout en bas de la fenetre d'installation, COCHER la case :
+
+            [x] Add python.exe to PATH
+
+       (Si tu oublies cette case, le .bat dira "Python n'est pas
+        installe". Il faudra alors reinstaller en cochant la case.)
+
+  1.5. Cliquer sur "Install Now".
+
+  1.6. Attendre la fin, puis cliquer "Close".
+
+  -> Python est installe. On ne refera plus jamais cette etape sur
+     ce PC.
+
+
+================================================================
+  ETAPE 2 - METTRE LES FICHIERS SUR LE PC
+================================================================
+
+  2.1. Copier  eduverse-migration-SOURCES.zip  sur le PC Windows
+       (cle USB, email, etc.).
+
+  2.2. Clic droit sur le fichier ZIP  ->  "Extraire tout..."
+       puis "Extraire".
+
+  2.3. Un dossier  eduverse-migration  apparait. L'ouvrir.
+
+  Dedans, tu dois voir notamment :
+       COMPILER-WINDOWS.bat     <- le fichier qui fait tout
+       migration.py             <- le programme
+       config.ini               <- les reglages
+       schema_mysql.sql         <- le schema EDUVERSE
+       GUIDE-COMPLET-WINDOWS.txt <- ce guide
+
+
+================================================================
+  ETAPE 3 - FABRIQUER LE .EXE  (le moment magique)
+================================================================
+
+  3.1. Dans le dossier  eduverse-migration, reperer le fichier :
+            COMPILER-WINDOWS.bat
+
+  3.2. DOUBLE-CLIQUER dessus.
+
+       (Si Windows affiche un avertissement bleu "Windows a protege
+        votre ordinateur" : cliquer sur "Informations complementaires"
+        puis "Executer quand meme". C'est normal, le fichier vient de
+        toi, il n'est pas dangereux.)
+
+  3.3. Une fenetre noire (ou verte) s'ouvre. Elle explique ce
+       qu'elle va faire. Appuyer sur une touche pour demarrer.
+
+  3.4. Le programme fait TOUT, tout seul :
+         - il verifie Python
+         - il installe l'outil de compilation (PyInstaller)   ~1-2 min
+         - il fabrique Migration-EDUVERSE.exe                  ~1-3 min
+         - il prepare le dossier a livrer
+
+       NE PAS FERMER LA FENETRE pendant ce temps.
+
+  3.5. Attendre le message en vert :
+            ================================
+               TERMINE !
+            ================================
+
+  -> Le .exe est fabrique.
+
+
+================================================================
+  ETAPE 4 - RECUPERER L'APPLICATION
+================================================================
+
+  Apres "TERMINE", un nouveau dossier est apparu a cote :
+
+            Migration-EDUVERSE-Windows
+
+  Il contient les 3 fichiers a livrer au client :
+
+            Migration-EDUVERSE.exe     (le programme)
+            config.ini                 (les reglages)
+            schema_mysql.sql           (le schema)
+
+  C'EST CE DOSSIER QUE TU DONNES AU CLIENT.
+  Le client double-clique sur Migration-EDUVERSE.exe. Rien a
+  installer chez lui.
+
+
+================================================================
+  ETAPE 5 - REGLER config.ini  (avant de livrer)
+================================================================
+
+  Ouvrir  config.ini  (clic droit -> Ouvrir avec -> Bloc-notes)
+  et verifier / corriger les chemins Windows :
+
+    [postgres]
+    psql = C:\Program Files\PostgreSQL\16\bin\psql.exe
+    host = localhost
+    port = 5432
+    user = postgres
+    password = (le mot de passe PostgreSQL, si il y en a un)
+    database = eduverse
+
+    [mysql]
+    mysql = C:\xampp\mysql\bin\mysql.exe
+    host = localhost
+    port = 3306
+    user = root
+    password = (le mot de passe MySQL, souvent vide avec XAMPP)
+    database = eduverse
+    schema_file = schema_mysql.sql
+
+  A adapter :
+   - Le numero de version PostgreSQL ("16") selon ce qui est
+     installe. Pour le trouver : ouvrir le dossier
+     C:\Program Files\PostgreSQL\  et regarder le numero du
+     sous-dossier.
+   - Le chemin de XAMPP si different (ex. D:\xampp\...).
+
+  Enregistrer (Fichier -> Enregistrer).
+
+
+================================================================
+  CE QUE FAIT L'APPLICATION (rappel)
+================================================================
+
+  Quand le client double-clique sur le .exe, une fenetre s'ouvre.
+  Il clique sur "Demarrer la migration", confirme, et le programme :
+
+    1. (Re)cree la base MySQL  eduverse  (propre, en utf8mb4).
+       /!\ Si une base eduverse existe deja dans MySQL, elle est
+           EFFACEE puis remplacee. Une confirmation est demandee.
+    2. Charge le schema EDUVERSE (toutes les tables, cles, etc.).
+    3. Exporte chaque table PostgreSQL en CSV.
+    4. Importe dans MySQL en convertissant tout seul :
+         - booleens  t/f      -> 1/0
+         - champs vides        -> NULL
+         - dates 0000-00-00    -> NULL
+         - colonnes en trop cote PostgreSQL -> ignorees
+    5. Verifie que le nombre de lignes correspond des deux cotes.
+
+  A la fin : message vert (tout OK) ou orange (un ecart a signaler).
+
+
+================================================================
+  PRE-REQUIS SUR LE PC QUI FERA LA MIGRATION
+================================================================
+
+  Ce PC (celui du client, ou le tien) doit avoir :
+
+   - PostgreSQL installe, avec la base  eduverse  (la source).
+   - XAMPP installe (donne MySQL).
+   - MySQL doit autoriser  LOAD DATA LOCAL INFILE
+     (c'est le cas par defaut avec XAMPP).
+   - L'utilisateur MySQL doit pouvoir creer une base
+     (DROP / CREATE DATABASE).
+   - Un ecran (c'est une fenetre : ca ne marche pas sur un
+     serveur sans affichage).
+
+  Note : l'application ne REMPLACE pas PostgreSQL et MySQL,
+  elle les PILOTE. Ils doivent donc etre presents et demarres.
+
+
+================================================================
+  EN CAS DE PROBLEME  (messages du .bat)
+================================================================
+
+  "Python n'est pas installe (ou pas ajoute au PATH)"
+      -> Python n'a pas ete installe, OU la case "Add Python to
+         PATH" n'a pas ete cochee a l'etape 1.
+      -> Solution : reinstaller Python en cochant bien la case,
+         puis relancer COMPILER-WINDOWS.bat.
+
+  "L'installation a echoue"
+      -> Pas de connexion Internet.
+      -> Solution : se connecter a Internet et relancer le .bat.
+
+  "La compilation a echoue"
+      -> Rare. Noter le message affiche au-dessus et le
+         transmettre a Webtinix / au support.
+
+  "Windows a protege votre ordinateur" (ecran bleu au lancement)
+      -> Normal pour un .bat fait maison.
+      -> Cliquer "Informations complementaires" puis
+         "Executer quand meme".
+
+  Le client double-clique le .exe et rien ne se passe
+      -> Verifier que config.ini et schema_mysql.sql sont bien
+         A COTE du .exe (dans le meme dossier).
+
+  "Connexion PostgreSQL impossible" / "Connexion MySQL"
+      -> Verifier les chemins psql / mysql et les mots de passe
+         dans config.ini. Verifier que PostgreSQL et MySQL tournent.
+
+
+================================================================
+  IMPORTANT - QUAND LE PROGRAMME EST MODIFIE
+================================================================
+
+  Si Webtinix corrige ou ameliore le programme (le fichier
+  migration.py change), il faut REFABRIQUER le .exe :
+     -> reprendre un  eduverse-migration-SOURCES.zip  a jour
+     -> refaire l'etape 3 (double-clic sur COMPILER-WINDOWS.bat).
+
+  Utiliser toujours le ZIP le plus recent.
+
+
+================================================================
+  RESUME FINAL
+================================================================
+
+  Installer Python (cocher "Add to PATH")
+        |
+        v
+  Extraire eduverse-migration-SOURCES.zip
+        |
+        v
+  Double-clic sur COMPILER-WINDOWS.bat  -> attendre "TERMINE"
+        |
+        v
+  Regler config.ini (chemins Windows)
+        |
+        v
+  Livrer le dossier Migration-EDUVERSE-Windows au client
+
+  Aucune commande a taper. Le .bat fait le travail.
+
+################################################################
+#  Webtinix - contact@webtinix.com - +242 06 469 64 68         #
+################################################################

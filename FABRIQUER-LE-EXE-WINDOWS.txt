@@ -1,0 +1,65 @@
+============================================================
+  FABRIQUER  Migration-EDUVERSE.exe  SUR WINDOWS
+  (a faire UNE fois, par Webtinix, sur une machine Windows)
+============================================================
+
+Un .exe Windows NE PEUT PAS etre fabrique depuis Linux.
+Il faut le faire sur un PC Windows. C'est rapide (5 min).
+
+
+ETAPE 1 - Installer Python (si pas deja fait)
+---------------------------------------------
+- Aller sur https://www.python.org/downloads/
+- Telecharger Python 3 (derniere version).
+- IMPORTANT a l'installation : cocher la case
+      [x] Add Python to PATH
+  puis cliquer "Install Now".
+
+
+ETAPE 2 - Copier les fichiers du programme
+------------------------------------------
+Sur le PC Windows, mettre dans un dossier (ex : C:\eduverse) :
+      migration.py
+      config.ini
+      schema_mysql.sql
+
+
+ETAPE 3 - Ouvrir l'invite de commandes dans ce dossier
+------------------------------------------------------
+- Ouvrir le dossier C:\eduverse dans l'explorateur.
+- Cliquer dans la barre d'adresse, taper :  cmd  puis Entree.
+  (Une fenetre noire s'ouvre, deja placee dans le bon dossier.)
+
+
+ETAPE 4 - Installer PyInstaller, puis compiler
+----------------------------------------------
+Taper ces 2 lignes (Entree apres chacune) :
+
+    pip install pyinstaller
+
+    pyinstaller --onefile --windowed --name "Migration-EDUVERSE" migration.py
+
+Attendre la fin ("Build complete").
+
+
+ETAPE 5 - Recuperer le .exe
+---------------------------
+Le fichier est cree dans le sous-dossier :  dist\
+      dist\Migration-EDUVERSE.exe
+
+Creer le dossier a livrer au client, avec 3 fichiers :
+      Migration-EDUVERSE.exe        (depuis dist\)
+      config.ini                    (regle pour ce client)
+      schema_mysql.sql
+
+Le client double-clique sur Migration-EDUVERSE.exe. Rien a installer chez lui.
+
+
+RAPPEL
+------
+- config.ini et schema_mysql.sql doivent TOUJOURS etre a cote du .exe.
+- Sur le PC du client : XAMPP installe, et MySQL doit autoriser
+  'LOAD DATA LOCAL INFILE' (par defaut OK avec XAMPP).
+- Adapter dans config.ini les chemins Windows, par exemple :
+      psql  = C:\Program Files\PostgreSQL\16\bin\psql.exe
+      mysql = C:\xampp\mysql\bin\mysql.exe
