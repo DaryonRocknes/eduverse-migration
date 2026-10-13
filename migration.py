@@ -291,6 +291,7 @@ def clean_output(out):
 
 def pg_env(cfg, tz=None):
     env = {"PGPASSWORD": cfg["postgres"]["password"],
+           "PGCONNECT_TIMEOUT": "15",
            "PGCLIENTENCODING": "UTF8",
            "PGDATESTYLE": "ISO, YMD"}
     if tz:
@@ -304,13 +305,15 @@ def mysql_env(cfg):
 
 def pg_base(cfg):
     p = cfg["postgres"]
-    return [p["psql"], "-X", "-v", "ON_ERROR_STOP=1", "-h", p["host"], "-p", p["port"],
+    # -w : ne jamais demander de mot de passe. Sous Windows, sans console, psql
+    # attendait une saisie impossible et le programme restait bloque.
+    return [p["psql"], "-X", "-w", "-v", "ON_ERROR_STOP=1", "-h", p["host"], "-p", p["port"],
             "-U", p["user"], "-d", p["database"]]
 
 
 def mysql_base(cfg, with_db=True):
     m = cfg["mysql"]
-    cmd = [m["mysql"], "--local-infile=1", "--default-character-set=utf8mb4",
+    cmd = [m["mysql"], "--local-infile=1", "--default-character-set=utf8mb4", "--connect-timeout=15",
            "-h", m["host"], "-P", m["port"], "-u", m["user"]]
     if with_db:
         cmd.append(m["database"])
@@ -354,7 +357,14 @@ def list_tables(cfg):
                     "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename;"],
                     pg_env(cfg))
     if code != 0:
-        raise RuntimeError("Connexion PostgreSQL impossible :\n" + clean_output(out))
+        msg = clean_output(out)
+        if "password" in msg.lower() or "mot de passe" in msg.lower():
+            msg += ("\n\n-> Verifier le mot de passe PostgreSQL dans config.ini "
+                    "(section [postgres], ligne password =).")
+        elif "timeout" in msg.lower() or "could not connect" in msg.lower() or "connexion" in msg.lower():
+            msg += ("\n\n-> Verifier que PostgreSQL est demarre, et l'adresse et le port "
+                    "dans config.ini (section [postgres]).")
+        raise RuntimeError("Connexion PostgreSQL impossible :\n" + msg)
     return [t.strip() for t in clean_output(out).splitlines() if t.strip()]
 
 
@@ -551,7 +561,15 @@ def recreate_database(cfg):
            % (q_ident_my(db), q_ident_my(db)))
     code, out = run(mysql_base(cfg, with_db=False) + ["-e", sql], mysql_env(cfg))
     if code != 0:
-        raise RuntimeError("Creation de la base MySQL impossible :\n" + clean_output(out))
+        msg = clean_output(out)
+        bas = msg.lower()
+        if "access denied" in bas:
+            msg += ("\n\n-> Verifier l'utilisateur et le mot de passe MySQL dans config.ini "
+                    "(section [mysql]).")
+        elif "can't connect" in bas or "timeout" in bas or "2002" in msg or "2003" in msg:
+            msg += ("\n\n-> Verifier que MySQL est demarre (XAMPP : bouton Start de MySQL), "
+                    "et l'adresse et le port dans config.ini (section [mysql]).")
+        raise RuntimeError("Connexion MySQL impossible :\n" + msg)
 
 
 def _line_start_before(text, idx):
